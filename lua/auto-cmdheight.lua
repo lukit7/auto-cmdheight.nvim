@@ -116,7 +116,9 @@ function CmdheightManager:activate(length)
     local remainder = length % columns
     local override = remainder >= echospace and lines >= self.cmdheight
 
-    if (lines <= self.cmdheight and not override) then
+    if (lines <= self.cmdheight and not override)
+        or lines > self.opts.max_lines
+    then
         self:deactivate(topline)
         return
     end
