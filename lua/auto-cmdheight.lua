@@ -172,6 +172,7 @@ function CmdheightManager:setup(opts)
         for i = 1, select("#", ...) do
             length = length + #tostring(select(i, ...))
         end
+        length = length + select("#", ...) - 1
         self:activate(length)
         self.print(...)
     end
