@@ -1,8 +1,10 @@
 # auto-cmdheight.nvim
 
 This plugin dynamically resizes your `'cmdheight'` to fit the content of
-messages displayed via `vim.api.nvim_echo()`, `vim.vim.print()`, and `print()`.
+messages displayed via `vim.api.nvim_echo()`, `vim.print()`, and `print()`.
 This removes the "Hit Enter" prompt for many cases.
+
+https://github.com/user-attachments/assets/6fda7f6a-0244-4192-83de-ebec8aa8fb92
 
 ### Setup (lazy.nvim)
 
