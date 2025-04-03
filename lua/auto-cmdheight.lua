@@ -97,7 +97,7 @@ function CmdheightManager:restore_topline(topline)
 
 end
 
-function CmdheightManager:activate(length)
+function CmdheightManager:activate(str)
     if self.in_cmd_line then
         return
     end
@@ -112,12 +112,21 @@ function CmdheightManager:activate(length)
 
     local echospace = vim.v.echospace
     local columns = vim.o.columns
-    local lines = 1 + math.floor((length - 1) / columns)
-    local remainder = length % columns
-    local override = remainder >= echospace and lines >= self.cmdheight
 
-    if (lines <= self.cmdheight and not override)
-        or lines > self.opts.max_lines
+    local lines = vim.split(str, "\n", { plain = true })
+    local num_lines = 0
+    for _, line in ipairs(lines) do
+        num_lines = num_lines + 1 + math.floor((#line - 1) / columns)
+        if #line >= columns and #line % columns == 0 then
+            num_lines = num_lines + 1
+        end
+    end
+
+    local remainder = #lines[#lines] % columns
+    local override = remainder >= echospace and num_lines >= self.cmdheight
+
+    if (num_lines <= self.cmdheight and not override)
+        or num_lines > self.opts.max_lines
     then
         self:deactivate(topline)
         return
@@ -132,7 +141,7 @@ function CmdheightManager:activate(length)
     if override then
         self:override_settings()
     end
-    vim.o.cmdheight = math.max(lines, self.cmdheight)
+    vim.o.cmdheight = math.max(num_lines, self.cmdheight)
     self:restore_topline(topline)
 end
 
@@ -168,25 +177,31 @@ function CmdheightManager:setup(opts)
     })
 
     function _G.print(...)
-        local length = 0
+        local buffer = {}
         for i = 1, select("#", ...) do
-            length = length + #tostring(select(i, ...))
+            table.insert(buffer, tostring(select(i, ...)))
         end
-        length = length + select("#", ...) - 1
-        self:activate(length)
+        self:activate(table.concat(buffer, " "))
         self.print(...)
     end
 
     --- @diagnostic disable-next-line
     function vim.api.nvim_echo(chunks, _history, _opts)
-        if type(chunks) == "table" then
-            local length = 0
+        local buffer = {}
+        local error = false
+        if type(chunks) ~= "table" then
+            error = true
+        else
             for _, chunk in ipairs(chunks) do
-                if type(chunk) == "table" and chunk[1] then
-                    length = length + #tostring(chunk[1])
+                if type(chunk) ~= "table" or type(chunk[1]) ~= "string" then
+                    error = true
+                    break
                 end
+                table.insert(buffer, chunk[1])
             end
-            self:activate(length)
+        end
+        if not error then
+            self:activate(table.concat(buffer, ""))
         end
         self.nvim_echo(chunks, _history, _opts)
     end
