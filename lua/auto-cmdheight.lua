@@ -123,7 +123,7 @@ function CmdheightManager:activate(str)
     end
 
     local remainder = #lines[#lines] % columns
-    local override = remainder >= echospace and num_lines >= self.cmdheight
+    local override = remainder > echospace and num_lines >= self.cmdheight
 
     if (num_lines <= self.cmdheight and not override)
         or num_lines > self.opts.max_lines
