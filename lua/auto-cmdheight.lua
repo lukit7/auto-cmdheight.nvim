@@ -68,7 +68,13 @@ function CmdheightManager:deactivate(topline)
             end
         end
         self.active = false
-        vim.o.cmdheight = self.cmdheight
+        if vim.o.cmdheight == self.cmdheight then
+            if self.opts.clear_always then
+                vim.api.nvim_echo({}, false, {})
+            end
+        else
+            vim.o.cmdheight = self.cmdheight
+        end
         self:restore_settings()
         self:unsubscribe_key()
         self:unsubscribe_timer()
@@ -84,15 +90,12 @@ local CTRL_E = vim.api.nvim_replace_termcodes("<c-e>", true, true, true)
 local CTRL_Y = vim.api.nvim_replace_termcodes("<c-y>", true, true, true)
 
 function CmdheightManager:restore_topline(topline)
-    local new_topline = vim.fn.line("w0")
-
-    local difference = new_topline - topline
-    if difference > 0 then
-        vim.api.nvim_feedkeys(math.abs(difference) .. CTRL_Y, "n", false)
-    elseif difference < 0 then
-        vim.api.nvim_feedkeys(math.abs(difference) .. CTRL_E, "n", false)
+    local difference = vim.fn.line("w0") - topline
+    if difference ~= 0 then
+        local key = difference > 0 and CTRL_Y or CTRL_E
+        vim.api.nvim_feedkeys(
+            math.abs(difference) .. key, "n", false)
     end
-
 end
 
 function CmdheightManager:activate(str)
@@ -124,8 +127,9 @@ function CmdheightManager:activate(str)
     local remainder = vim.fn.strwidth(lines[#lines]) % columns
     local override = remainder > echospace and num_lines >= self.cmdheight
 
-    if (num_lines <= self.cmdheight and not override)
-        or num_lines > self.opts.max_lines
+    if (num_lines <= self.cmdheight and not override
+        or num_lines > self.opts.max_lines)
+        and not self.opts.clear_always
     then
         self:deactivate(topline)
         return
@@ -210,6 +214,7 @@ end
 --- @field max_lines? number
 --- @field duration? number
 --- @field remove_on_key? boolean
+--- @field clear_always? boolean
 
 local M = {}
 
@@ -219,6 +224,7 @@ function M.setup(opts)
         max_lines = 5,
         duration = 2,
         remove_on_key = true,
+        clear_always = false,
     })
     opts.duration = math.max(opts.duration, 0.1)
     CmdheightManager:setup(opts)
