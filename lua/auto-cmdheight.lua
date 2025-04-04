@@ -116,13 +116,14 @@ function CmdheightManager:activate(str)
     local lines = vim.split(str, "\n", { plain = true })
     local num_lines = 0
     for _, line in ipairs(lines) do
-        num_lines = num_lines + 1 + math.floor((#line - 1) / columns)
-        if #line >= columns and #line % columns == 0 then
+        local len = vim.fn.strwidth(line)
+        num_lines = num_lines + 1 + math.floor((len - 1) / columns)
+        if len >= columns and len % columns == 0 then
             num_lines = num_lines + 1
         end
     end
 
-    local remainder = #lines[#lines] % columns
+    local remainder = vim.fn.strwidth(lines[#lines]) % columns
     local override = remainder > echospace and num_lines >= self.cmdheight
 
     if (num_lines <= self.cmdheight and not override)
