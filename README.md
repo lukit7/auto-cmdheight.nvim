@@ -21,6 +21,10 @@ https://github.com/user-attachments/assets/6fda7f6a-0244-4192-83de-ebec8aa8fb92
 
     -- whether key press is required to restore cmdheight.
     remove_on_key = true,
+
+    -- always clear the cmdline after duration and key press.
+    -- by default it will only happen when cmdheight changed.
+    clear_always = false,
   }
 }
 ```
