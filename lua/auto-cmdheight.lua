@@ -33,22 +33,20 @@ function CmdheightManager:restore_settings()
 end
 
 function CmdheightManager:subscribe_key()
-    if self.opts.remove_on_key then
-        vim.on_key(function()
-            self:unsubscribe_key()
-            self:deactivate()
-        end, self.nsid)
-    else
+    vim.on_key(function()
+        self:unsubscribe_key()
         self:deactivate()
-    end
+    end, self.nsid)
 end
 
 function CmdheightManager:subscribe_timer()
-    if self.opts.duration then
-        self.timer = vim.defer_fn(function()
+    self.timer = vim.defer_fn(function()
+        if self.opts.remove_on_key then
             self:subscribe_key()
-        end, math.floor(self.opts.duration * 1000))
-    end
+        else
+            self:deactivate()
+        end
+    end, math.floor(self.opts.duration * 1000))
 end
 
 function CmdheightManager:unsubscribe_key()
