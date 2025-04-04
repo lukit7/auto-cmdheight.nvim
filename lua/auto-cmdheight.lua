@@ -1,6 +1,33 @@
 --- @type any
 local uv = vim.uv or vim.loop
 
+local CTRL_E = vim.api.nvim_replace_termcodes("<c-e>", true, true, true)
+local CTRL_Y = vim.api.nvim_replace_termcodes("<c-y>", true, true, true)
+
+local function restore_window_toplines(toplines)
+    for win_id, topline in pairs(toplines) do
+        vim.api.nvim_win_call(win_id, function()
+            local difference = vim.fn.line("w0") - topline
+            if difference ~= 0 then
+                local key = difference > 0 and CTRL_Y or CTRL_E
+                vim.api.nvim_feedkeys(
+                    math.abs(difference) .. key, "nx", false)
+            end
+        end)
+    end
+end
+
+local function get_window_toplines()
+    local win_ids = vim.api.nvim_tabpage_list_wins(0)
+    local toplines = {}
+    for _, win_id in ipairs(win_ids) do
+        toplines[win_id] = vim.api.nvim_win_call(win_id, function()
+            return vim.fn.line("w0")
+        end)
+    end
+    return toplines
+end
+
 local CmdheightManager = {
     opts = nil, --- @type AutoCmdheightOpts
     settings = nil,
@@ -60,11 +87,11 @@ function CmdheightManager:unsubscribe_timer()
     end
 end
 
-function CmdheightManager:deactivate(topline)
+function CmdheightManager:deactivate(toplines)
     if self.active then
         if not self.in_cmd_line then
-            if not topline then
-                topline = vim.fn.line("w0")
+            if not toplines then
+                toplines = get_window_toplines()
             end
         end
         self.active = false
@@ -78,20 +105,8 @@ function CmdheightManager:deactivate(topline)
         if self.in_cmd_line then
             vim.cmd.redraw()
         else
-            self:restore_topline(topline)
+            restore_window_toplines(toplines)
         end
-    end
-end
-
-local CTRL_E = vim.api.nvim_replace_termcodes("<c-e>", true, true, true)
-local CTRL_Y = vim.api.nvim_replace_termcodes("<c-y>", true, true, true)
-
-function CmdheightManager:restore_topline(topline)
-    local difference = vim.fn.line("w0") - topline
-    if difference ~= 0 then
-        local key = difference > 0 and CTRL_Y or CTRL_E
-        vim.api.nvim_feedkeys(
-            math.abs(difference) .. key, "n", false)
     end
 end
 
@@ -100,7 +115,7 @@ function CmdheightManager:activate(str)
         return
     end
 
-    local topline = vim.fn.line("w0")
+    local toplines = get_window_toplines()
 
     self:restore_settings()
 
@@ -128,7 +143,7 @@ function CmdheightManager:activate(str)
         or num_lines > self.opts.max_lines)
         and not self.opts.clear_always
     then
-        self:deactivate(topline)
+        self:deactivate(toplines)
         return
     end
 
@@ -142,7 +157,7 @@ function CmdheightManager:activate(str)
         self:override_settings()
     end
     vim.o.cmdheight = math.max(num_lines, self.cmdheight)
-    self:restore_topline(topline)
+    restore_window_toplines(toplines)
 end
 
 --- @param opts AutoCmdheightOpts
