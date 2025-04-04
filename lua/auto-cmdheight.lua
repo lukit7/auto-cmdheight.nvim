@@ -1,31 +1,22 @@
 --- @type any
 local uv = vim.uv or vim.loop
 
-local CTRL_E = vim.api.nvim_replace_termcodes("<c-e>", true, true, true)
-local CTRL_Y = vim.api.nvim_replace_termcodes("<c-y>", true, true, true)
-
-local function restore_window_toplines(toplines)
-    for win_id, topline in pairs(toplines) do
+local function restore_winviews(winviews)
+    for win_id, winview in pairs(winviews) do
         vim.api.nvim_win_call(win_id, function()
-            local difference = vim.fn.line("w0") - topline
-            if difference ~= 0 then
-                local key = difference > 0 and CTRL_Y or CTRL_E
-                vim.api.nvim_feedkeys(
-                    math.abs(difference) .. key, "nx", false)
-            end
+            vim.fn.winrestview(winview)
         end)
     end
 end
 
-local function get_window_toplines()
+local function save_winviews()
     local win_ids = vim.api.nvim_tabpage_list_wins(0)
-    local toplines = {}
+    local winviews = {}
     for _, win_id in ipairs(win_ids) do
-        toplines[win_id] = vim.api.nvim_win_call(win_id, function()
-            return vim.fn.line("w0")
-        end)
+        winviews[win_id] = vim.api.nvim_win_call(
+            win_id, vim.fn.winsaveview)
     end
-    return toplines
+    return winviews
 end
 
 local CmdheightManager = {
@@ -93,12 +84,10 @@ function CmdheightManager:unsubscribe_timer()
     end
 end
 
-function CmdheightManager:deactivate(toplines)
+function CmdheightManager:deactivate(winviews)
     if self.active then
-        if not self.in_cmd_line then
-            if not toplines then
-                toplines = get_window_toplines()
-            end
+        if not winviews then
+            winviews = save_winviews()
         end
         self.active = false
         vim.o.cmdheight = self.cmdheight
@@ -106,14 +95,9 @@ function CmdheightManager:deactivate(toplines)
             vim.api.nvim_echo({}, false, {})
         end
         self:restore_settings()
-        self.scheduled_deactivate = false
         self:unsubscribe_key()
         self:unsubscribe_timer()
-        if self.in_cmd_line then
-            vim.cmd.redraw()
-        else
-            restore_window_toplines(toplines)
-        end
+        restore_winviews(winviews)
     end
 end
 
@@ -122,7 +106,7 @@ function CmdheightManager:activate(str)
         return
     end
 
-    local toplines = get_window_toplines()
+    local winviews = save_winviews()
 
     self:restore_settings()
 
@@ -150,11 +134,12 @@ function CmdheightManager:activate(str)
         or num_lines > self.opts.max_lines)
         and not self.opts.clear_always
     then
-        self:deactivate(toplines)
+        self:deactivate(winviews)
         return
     end
 
     self.active = true
+    self.scheduled_deactivate = false
 
     self:unsubscribe_key()
     self:unsubscribe_timer()
@@ -164,7 +149,7 @@ function CmdheightManager:activate(str)
         self:override_settings()
     end
     vim.o.cmdheight = math.max(num_lines, self.cmdheight)
-    restore_window_toplines(toplines)
+    restore_winviews(winviews)
 end
 
 --- @param opts AutoCmdheightOpts
