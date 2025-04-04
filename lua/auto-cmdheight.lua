@@ -35,6 +35,7 @@ local CmdheightManager = {
     active = false,
     in_cmd_line = false,
     key_pressed = false,
+    scheduled_deactivate = false,
     nvim_echo = vim.api.nvim_echo,
     cmd_echo = vim.cmd.echo,
     print = print,
@@ -62,7 +63,12 @@ end
 function CmdheightManager:subscribe_key()
     vim.on_key(function()
         self:unsubscribe_key()
-        self:deactivate()
+        self.scheduled_deactivate = true
+        vim.schedule(function()
+            if self.scheduled_deactivate then
+                self:deactivate()
+            end
+        end)
     end, self.nsid)
 end
 
@@ -100,6 +106,7 @@ function CmdheightManager:deactivate(toplines)
             vim.api.nvim_echo({}, false, {})
         end
         self:restore_settings()
+        self.scheduled_deactivate = false
         self:unsubscribe_key()
         self:unsubscribe_timer()
         if self.in_cmd_line then
