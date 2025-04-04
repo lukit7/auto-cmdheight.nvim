@@ -68,12 +68,9 @@ function CmdheightManager:deactivate(topline)
             end
         end
         self.active = false
-        if vim.o.cmdheight == self.cmdheight then
-            if self.opts.clear_always then
-                vim.api.nvim_echo({}, false, {})
-            end
-        else
-            vim.o.cmdheight = self.cmdheight
+        vim.o.cmdheight = self.cmdheight
+        if self.opts.clear_always then
+            vim.api.nvim_echo({}, false, {})
         end
         self:restore_settings()
         self:unsubscribe_key()
