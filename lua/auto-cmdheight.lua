@@ -26,6 +26,7 @@ local CmdheightManager = {
     active = false,
     in_cmd_line = false,
     key_pressed = false,
+    printed = false,
     scheduled_deactivate = false,
     nvim_echo = vim.api.nvim_echo,
     cmd_echo = vim.cmd.echo,
@@ -51,15 +52,19 @@ function CmdheightManager:restore_settings()
     end
 end
 
+function CmdheightManager:schedule_deactivate()
+    self.scheduled_deactivate = true
+    vim.schedule(function()
+        if self.scheduled_deactivate then
+            self:deactivate()
+        end
+    end)
+end
+
 function CmdheightManager:subscribe_key()
     vim.on_key(function()
         self:unsubscribe_key()
-        self.scheduled_deactivate = true
-        vim.schedule(function()
-            if self.scheduled_deactivate then
-                self:deactivate()
-            end
-        end)
+        self:schedule_deactivate()
     end, self.nsid)
 end
 
@@ -90,7 +95,15 @@ function CmdheightManager:deactivate(winviews)
             winviews = save_winviews()
         end
         self.active = false
-        vim.o.cmdheight = self.cmdheight
+
+        local tab_ids = vim.api.nvim_list_tabpages()
+        for _, tab_id in ipairs(tab_ids) do
+            local win_id = vim.api.nvim_tabpage_get_win(tab_id)
+            vim.api.nvim_win_call(win_id, function()
+                vim.o.cmdheight = self.cmdheight
+            end)
+        end
+
         if self.opts.clear_always then
             vim.api.nvim_echo({}, false, {})
         end
@@ -105,6 +118,11 @@ function CmdheightManager:activate(str)
     if self.in_cmd_line then
         return
     end
+    if self.printed then
+        self:schedule_deactivate()
+        return
+    end
+    self.printed = true
 
     local winviews = save_winviews()
 
@@ -180,6 +198,16 @@ function CmdheightManager:setup(opts)
         group = "auto-cmdheight",
         callback = function()
             self:deactivate()
+        end
+    })
+    vim.api.nvim_create_autocmd("SafeState", {
+        pattern = "*",
+        group = "auto-cmdheight",
+        callback = function()
+            self.printed = false
+            if vim.fn.state("s") == "s" then
+                self:schedule_deactivate()
+            end
         end
     })
 
